@@ -1,8 +1,11 @@
 {
   "symbols": [
     "AAPL",
-    "AMZN",
     "AMD",
+    "AMZN",
+    "GOOG",
+    "META",
+    "NFLX",
     "NVDA",
     "RBLX",
     "SOXL",
