@@ -1,4 +1,4 @@
-name: "GitHub Actions subredditstats Bot"
+name: "GitHub Actions Stocks Bot"
 
 on:
   push:
