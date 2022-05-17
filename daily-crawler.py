@@ -4,9 +4,9 @@ import lzma
 import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
-from symtable import SymbolTableFactory
 from typing import List, Optional
 
+import pandas as pd
 import requests_cache
 import yfinance as yf
 
@@ -35,6 +35,8 @@ def fetch_all_history(symbol: str, output_file: str) -> bool:
 
 def fetch_daily_ohlcv(symbol: str, begin_day: str, end_day: str, csv_file: str) -> bool:
     assert os.path.exists(csv_file)
+    if begin_day == end_day:
+        return True
     ticker = yf.Ticker(symbol, session=session)
     updates = ticker.history(start=begin_day, end=end_day)
     if len(updates) == 0:
@@ -79,23 +81,44 @@ def get_option_symbols(symbol: str) -> List[str]:
     if len(ticker.options) == 0:
         return []
     os.makedirs(os.path.join("data", "options", symbol, "summary"), exist_ok=True)
+
+    def update_summary_file(df: pd.DataFrame, csv_file: str) -> None:
+        if os.path.exists(csv_file):
+            old_df = pd.read_csv(csv_file)
+            old_df = old_df.set_index("contractSymbol")
+            df = df.set_index("contractSymbol")
+            old_df.update(df)
+            missing_index = df.index.difference(old_df.index)
+            if missing_index.empty:
+                old_df = pd.concat([old_df, df.loc[missing_index, :]])
+            old_df.reset_index(inplace=True)
+            old_df.to_csv(
+                csv_file,
+                encoding="utf-8",
+                index=False,
+                header=True,
+            )
+        else:
+            df.to_csv(
+                csv_file,
+                encoding="utf-8",
+                index=False,
+                header=True,
+            )
+
     for day in ticker.options:
         option_chain = ticker.option_chain(day)
         calls = option_chain.calls
-        calls.to_csv(
+        update_summary_file(
+            calls,
             os.path.join("data", "options", symbol, "summary", f"calls-{day}.csv.xz"),
-            encoding="utf-8",
-            index=False,
-            header=True,
+        )
+        puts = option_chain.puts
+        update_summary_file(
+            puts,
+            os.path.join("data", "options", symbol, "summary", f"puts-{day}.csv.xz"),
         )
         calls = calls[calls["inTheMoney"] == True]
-        puts = option_chain.puts
-        puts.to_csv(
-            os.path.join("data", "options", symbol, "summary", f"puts-{day}.csv.xz"),
-            encoding="utf-8",
-            index=False,
-            header=True,
-        )
         puts = puts[puts["inTheMoney"] == True]
         call_symbols = list(calls["contractSymbol"].values)
         put_symbols = list(puts["contractSymbol"].values)
