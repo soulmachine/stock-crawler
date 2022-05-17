@@ -4,6 +4,7 @@ import lzma
 import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
+from locale import DAY_1
 from typing import List, Optional
 
 import pandas as pd
@@ -92,6 +93,7 @@ def get_option_symbols(symbol: str) -> List[str]:
             if missing_index.empty:
                 old_df = pd.concat([old_df, df.loc[missing_index, :]])
             old_df.reset_index(inplace=True)
+            old_df = old_df.sort_values(by="contractSymbol")
             old_df.to_csv(
                 csv_file,
                 encoding="utf-8",
@@ -99,6 +101,7 @@ def get_option_symbols(symbol: str) -> List[str]:
                 header=True,
             )
         else:
+            df = df.sort_values(by="contractSymbol")
             df.to_csv(
                 csv_file,
                 encoding="utf-8",
